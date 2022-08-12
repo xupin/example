@@ -94,10 +94,10 @@ func main() {
 	astar.print(node, mapData)
 }
 
-func (a *AStar) Init(mapData [][]int) {
-	a.nodes = make([][]*Node, a.Cols)
-	for i := 0; i < a.Cols; i++ {
-		a.nodes[i] = make([]*Node, a.Rows)
+func (r *AStar) Init(mapData [][]int) {
+	r.nodes = make([][]*Node, r.Cols)
+	for i := 0; i < r.Cols; i++ {
+		r.nodes[i] = make([]*Node, r.Rows)
 	}
 	for i := 0; i < len(mapData); i++ {
 		for j := 0; j < len(mapData[i]); j++ {
@@ -106,11 +106,11 @@ func (a *AStar) Init(mapData [][]int) {
 				Y:    i,
 				Type: mapData[i][j],
 			}
-			a.nodes[j][i] = node
+			r.nodes[j][i] = node
 		}
 	}
 	// 如果不允许对角移动，去除对角坐标
-	a.neighborPos = [][]int{
+	r.neighborPos = [][]int{
 		{0, -1},  // 上
 		{1, -1},  // 右上
 		{1, 0},   // 右
@@ -122,24 +122,24 @@ func (a *AStar) Init(mapData [][]int) {
 	}
 }
 
-func (a *AStar) FindPath(start, end *Node) *Node {
-	a.start = a.nodes[start.X][start.Y]
-	a.end = a.nodes[end.X][end.Y]
+func (r *AStar) FindPath(start, end *Node) *Node {
+	r.start = r.nodes[start.X][start.Y]
+	r.end = r.nodes[end.X][end.Y]
 	// 如果起止点是障碍物
-	if !a.start.isWalkable() || !a.end.isWalkable() {
+	if !r.start.isWalkable() || !r.end.isWalkable() {
 		fmt.Println("障碍物不可移动")
 		return nil
 	}
 	// 先把开始节点放进开放列表
-	a.openListAppend(start)
-	for len(a.openList) > 0 {
-		node := a.openListPop()
+	r.openListAppend(start)
+	for len(r.openList) > 0 {
+		node := r.openListPop()
 		// 判断当前节点是否是终点
-		if a.isEnd(node) {
+		if r.isEnd(node) {
 			return node
 		}
 		// 找开放列表的第一个节点的相邻节点
-		neighbors := a.findNeighbors(node)
+		neighbors := r.findNeighbors(node)
 		for _, neighbor := range neighbors {
 			// 是否在关闭列表
 			if neighbor.isClosed() {
@@ -157,55 +157,55 @@ func (a *AStar) FindPath(start, end *Node) *Node {
 			}
 			if !neighbor.isOpened() || g < neighbor.G {
 				neighbor.G = g
-				neighbor.H = a.Heuristic(neighbor, end)
+				neighbor.H = r.Heuristic(neighbor, end)
 				neighbor.F = neighbor.G + neighbor.H
 				neighbor.Parent = node
 				// 优化逻辑，相邻节点是否是终点
-				// if a.isEnd(neighbor) {
+				// if r.isEnd(neighbor) {
 				// 	return neighbor
 				// }
 				if !neighbor.isOpened() {
-					a.openListAppend(neighbor)
+					r.openListAppend(neighbor)
 				}
 			}
 		}
 		// 当前节点放进关闭列表
-		a.closeListAppend(node)
+		r.closeListAppend(node)
 		// 更新开放列表顺序
-		a.openListSort()
+		r.openListSort()
 	}
 	return nil
 }
 
 // 查找相邻节点位置
-func (a *AStar) findNeighbors(node *Node) []*Node {
+func (r *AStar) findNeighbors(node *Node) []*Node {
 	neighbors := make([]*Node, 0)
-	for _, v := range a.neighborPos {
+	for _, v := range r.neighborPos {
 		x, y := node.X+v[0], node.Y+v[1]
 		// 检测节点是否非法
-		if !a.isWalkable(x, y) {
+		if !r.isWalkable(x, y) {
 			continue
 		}
-		neighbors = append(neighbors, a.nodes[x][y])
+		neighbors = append(neighbors, r.nodes[x][y])
 	}
 	return neighbors
 }
 
-func (a *AStar) isEnd(node *Node) bool {
-	return node.X == a.end.X && node.Y == a.end.Y
+func (r *AStar) isEnd(node *Node) bool {
+	return node.X == r.end.X && node.Y == r.end.Y
 }
 
-func (a *AStar) isWalkable(x, y int) bool {
+func (r *AStar) isWalkable(x, y int) bool {
 	// 最小越界
 	if x < 0 || y < 0 {
 		return false
 	}
 	// 最大越界
-	if x > a.Cols-1 || y > a.Rows-1 {
+	if x > r.Cols-1 || y > r.Rows-1 {
 		return false
 	}
 	// 节点是否可行
-	if !a.nodes[x][y].isWalkable() {
+	if !r.nodes[x][y].isWalkable() {
 		return false
 	}
 	return true
@@ -223,58 +223,58 @@ func (node *Node) isClosed() bool {
 	return node.State == NODE_STATE_CLOSED
 }
 
-func (a *AStar) openListAppend(node *Node) {
+func (r *AStar) openListAppend(node *Node) {
 	node.State = NODE_STATE_OPENED
-	a.openList = append(a.openList, node)
+	r.openList = append(r.openList, node)
 }
 
-func (a *AStar) openListPop() *Node {
-	s := a.openList
+func (r *AStar) openListPop() *Node {
+	s := r.openList
 	if len(s) == 0 {
 		return nil
 	}
 	v := s[0]
 	s[0] = nil
 	s = s[1:]
-	a.openList = s
+	r.openList = s
 	return v
 }
 
-func (a *AStar) openListSort() {
-	sort.Slice(a.openList, func(i, j int) bool {
-		return a.openList[i].F < a.openList[j].F
+func (r *AStar) openListSort() {
+	sort.Slice(r.openList, func(i, j int) bool {
+		return r.openList[i].F < r.openList[j].F
 	})
 }
 
-func (a *AStar) closeListAppend(node *Node) {
+func (r *AStar) closeListAppend(node *Node) {
 	node.State = NODE_STATE_CLOSED
-	a.closeList = append(a.closeList, node)
+	r.closeList = append(r.closeList, node)
 }
 
-func (a *AStar) print(node *Node, mapData [][]int) {
+func (r *AStar) print(node *Node, mapData [][]int) {
 	fmt.Println("导航路径：")
 	for node != nil {
 		fmt.Printf("x,y: %d,%d cost: f%d h%d g%d \n", node.X, node.Y, node.F, node.H, node.G)
-		a.nodes[node.X][node.Y].Type = 9
+		r.nodes[node.X][node.Y].Type = 9
 		node = node.Parent
 	}
 	fmt.Println("导航图：")
 	for i := 0; i < len(mapData); i++ {
 		for j := 0; j < len(mapData[i]); j++ {
-			if a.nodes[j][i].Type == 9 {
+			if r.nodes[j][i].Type == 9 {
 				fmt.Print("* ")
 			} else {
-				fmt.Print(a.nodes[j][i].Type, " ")
+				fmt.Print(r.nodes[j][i].Type, " ")
 			}
 		}
 		fmt.Print("\n")
 	}
 	fmt.Println("准备扫描节点：")
-	for _, node := range a.openList {
+	for _, node := range r.openList {
 		fmt.Printf("x,y: %d,%d \n", node.X, node.Y)
 	}
 	fmt.Println("已扫描节点：")
-	for _, node := range a.closeList {
+	for _, node := range r.closeList {
 		fmt.Printf("x,y: %d,%d \n", node.X, node.Y)
 	}
 }

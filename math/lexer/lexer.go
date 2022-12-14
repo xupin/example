@@ -139,8 +139,7 @@ func (r *Lexer) Scan() *Token {
 			Start: pos,
 			End:   pos,
 		}
-		r.NextChar()
-		if r.Char == '*' {
+		if r.NextChar() && r.Char == '*' {
 			token = &Token{
 				Str:   "**",
 				Type:  enums.XOR,

@@ -84,7 +84,7 @@ func (r *Parser) ParseExpr() Node {
 		return r.ParseNumber()
 	case enums.SUB:
 		if t := r.NextToken(); t.Type == enums.EOF {
-			r.Err = errors.New("want '0-9' but get 'eof'")
+			r.Err = errors.New("expects to be number, eof given")
 			return nil
 		}
 		return &Stmt{
@@ -103,7 +103,7 @@ func (r *Parser) ParseExpr() Node {
 	case enums.FUNC:
 		return r.ParseFunc()
 	default:
-		r.Err = errors.New("want 'expr' but get 'exception'")
+		r.Err = fmt.Errorf("expects to be number, '%s' given", r.CurToken.Str)
 		return nil
 	}
 }
@@ -116,10 +116,7 @@ func (r *Parser) ParseRight(precedence int, left Node) Node {
 			return left
 		}
 		tokenType := r.CurToken.Type
-		if t := r.NextToken(); t.Type == enums.EOF {
-			r.Err = errors.New("want '0-9' but get 'eof'")
-			return nil
-		}
+		r.NextToken()
 		right := r.ParseExpr()
 		if right == nil {
 			return nil
@@ -141,17 +138,17 @@ func (r *Parser) ParseRight(precedence int, left Node) Node {
 // 变量
 func (r *Parser) ParseVar() *Var {
 	if t := r.NextToken(); t.Type == enums.EOF {
-		r.Err = errors.New("want 'VAR' but get 'eof'")
+		r.Err = errors.New("expects to be variable, eof given")
 		return nil
 	}
 	key := r.CurToken.Str
 	if t := r.NextToken(); t.Type == enums.EOF {
-		r.Err = errors.New("want '}' but get 'eof'")
+		r.Err = errors.New("expects to be '}', eof given")
 		return nil
 	}
 	v, ok := r.Params[key]
 	if !ok {
-		fmt.Printf("变量[%s]未解析 \n", key)
+		r.Err = fmt.Errorf("variable %s is not bound", key)
 		v = 0
 	}
 	node := &Var{
@@ -166,7 +163,6 @@ func (r *Parser) ParseVar() *Var {
 func (r *Parser) ParseNumber() *Number {
 	f, err := strconv.ParseFloat(r.CurToken.Str, 64)
 	if err != nil {
-		fmt.Printf("解析[%+v]异常 %+v \n", r.CurToken, err)
 		return &Number{}
 	}
 	node := &Number{
@@ -179,16 +175,16 @@ func (r *Parser) ParseNumber() *Number {
 // 表达式
 func (r *Parser) ParseStmt() Node {
 	if t := r.NextToken(); t.Type == enums.EOF {
-		r.Err = errors.New("want '0-9' but get 'eof'")
+		r.Err = errors.New("expects to be number, eof given")
 		return nil
 	}
 	node := r.Compile()
 	if node == nil {
-		r.Err = errors.New("want '0-9' but get ' '")
+		r.Err = errors.New("expects to be number, nil given")
 		return nil
 	}
 	if r.CurToken.Type != enums.RPAREN {
-		r.Err = fmt.Errorf("want ')' but get '%s'", r.CurToken.Str)
+		r.Err = fmt.Errorf("expects to be number, '%s' given", r.CurToken.Str)
 		return nil
 	}
 	r.NextToken()
@@ -198,34 +194,35 @@ func (r *Parser) ParseStmt() Node {
 // 函数
 func (r *Parser) ParseFunc() Node {
 	funcName := r.CurToken.Str
-	if t := r.NextToken(); t.Type == enums.LPAREN {
-		nodes := make([]Node, 0)
-		for r.CurToken.Type != enums.RPAREN {
-			if t := r.NextToken(); t.Type == enums.EOF {
-				break
-			}
-			if r.CurToken.Type == enums.COMMA {
-				continue
-			}
-			nodes = append(nodes, r.Compile())
+	if t := r.NextToken(); t.Type != enums.LPAREN {
+		r.Err = fmt.Errorf("expects to be '(', '%s' given", r.CurToken.Str)
+		return nil
+	}
+	nodes := make([]Node, 0)
+	for r.CurToken.Type != enums.RPAREN {
+		if t := r.NextToken(); t.Type == enums.EOF {
+			break
 		}
-		if r.CurToken.Type != enums.RPAREN {
-			r.Err = fmt.Errorf("want ')' but get '%s'", r.CurToken.Str)
-			return nil
+		if r.CurToken.Type == enums.COMMA {
+			continue
 		}
-		if _, ok := CallFunc[funcName]; !ok {
-			fmt.Printf("函数[%s]未定义 \n", funcName)
-			return &Func{
-				Name: DEF_FUNC,
-				Args: nodes,
-			}
-		}
+		nodes = append(nodes, r.Compile())
+	}
+	if r.CurToken.Type != enums.RPAREN {
+		r.Err = fmt.Errorf("expects to be number, '%s' given", r.CurToken.Str)
+		return nil
+	}
+	if _, ok := CallFunc[funcName]; !ok {
+		fmt.Printf("func %s is undefined \n", funcName)
 		return &Func{
-			Name: funcName,
+			Name: DEF_FUNC,
 			Args: nodes,
 		}
 	}
-	return nil
+	return &Func{
+		Name: funcName,
+		Args: nodes,
+	}
 }
 
 // 下一个字符
@@ -268,13 +265,13 @@ func (r *Stmt) Evaluate() float64 {
 		return left * right
 	case enums.QUO:
 		if right == 0 {
-			fmt.Printf("表达式[%g/%g]异常，除数不能为0 \n", left, right)
+			fmt.Printf("expr[%g/%g]exception, division by zero \n", left, right)
 			return 0
 		}
 		return left / right
 	case enums.REM:
 		if right == 0 {
-			fmt.Printf("表达式[%g%%%g]异常，除数不能为0 \n", left, right)
+			fmt.Printf("expr[%g%%%g]exception, division by zero \n", left, right)
 			return 0
 		}
 		return float64(int64(left) % int64(right))
